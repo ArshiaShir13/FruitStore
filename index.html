@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>میوه</title>
+    <script src="functions.js"></script>
+    <link rel="stylesheet" href="font.css">
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/konva@8.4.0/konva.min.js"></script>
+
+</head>
+
+<body>
+    <h1>میوه فروشی </h1>
+    <script>
+        const products = [
+            { id: 1, title: "هندونه", image: "images/hendoone.png", price: 9000 },
+            { id: 2, title: "سیب", image: "images/sib.png", price: 8500 },
+            { id: 3, title: "موز", image: "images/moz.png", price: 7800 }
+        ];
+
+    </script>
+
+    <div class="ProductContainer"></div>
+    <script>
+        renderProducts()
+    </script>
+
+    <hr>
+
+    <div id="checkout" style="text-align: center;display: none;">
+
+        <h2>مجموع :
+            <span id="total"></span>
+            تومان
+        </h2>
+        <button class="payButton">پرداخت</button>
+
+    </div>
+
+
+
+    <div id="stage"></div>
+
+    <script>
+
+        function Partab(imgItem) {
+            var imgBoundingRect = imgItem.getBoundingClientRect();
+
+            var PartabImg = new Image();
+            PartabImg.onload = function () {
+
+                var CanvasPartabImg = new Konva.Image({
+                    x: imgBoundingRect.left, // Center horizontally
+                    y: imgBoundingRect.top, // Start below the screen
+                    image: PartabImg,
+                    width: imgBoundingRect.width,
+                    height: imgBoundingRect.height,
+                });
+
+                layer.add(CanvasPartabImg);
+
+                const startX = CanvasPartabImg.x(); // Current x position
+                const startY = CanvasPartabImg.y(); // Current y position
+                const targetX = BasketGroup.x() + (CanvasPartabImg.width() / 2); // Target x position
+                const targetY = UpBasketPosition
+
+                const duration = 0.5; // Duration of the animation (seconds)
+
+                // Calculate control point for the parabola (midpoint with a height boost)
+                const controlX = (startX + targetX) / 2; // Midpoint x
+                const controlY = Math.min(startY, targetY) - 100; // Peak of the arc (higher than both points)
+
+                // Time tracker for manual updates
+                const startTime = Date.now();
+
+                // Set the anchor point to the center of the object
+                CanvasPartabImg.offsetX(CanvasPartabImg.width() / 2);
+                CanvasPartabImg.offsetY(CanvasPartabImg.height() / 2);
+
+                const tween = new Konva.Tween({
+                    node: CanvasPartabImg,
+                    duration: duration,
+                    easing: Konva.Easings.Linear,
+                    onUpdate: () => {
+                        const elapsedTime = (Date.now() - startTime) / 1000; // Time in seconds
+                        const t = Math.min(elapsedTime / duration, 1); // Normalize progress (0 to 1)
+
+                        // Calculate position using the quadratic Bezier curve
+                        const x = (1 - t) * (1 - t) * startX + 2 * (1 - t) * t * controlX + t * t * targetX;
+                        const y = (1 - t) * (1 - t) * startY + 2 * (1 - t) * t * controlY + t * t * targetY;
+
+                        // Update position
+                        CanvasPartabImg.x(x);
+                        CanvasPartabImg.y(y);
+
+                        // Add rotation
+                        const startAngle = 0; // Starting rotation angle in degrees
+                        const targetAngle = 180; // Final rotation angle in degrees (one full rotation)
+                        const rotation = startAngle + t * (targetAngle - startAngle);
+
+                        CanvasPartabImg.rotation(rotation); // Update the rotation of the object
+                    },
+                    onFinish: () => {
+
+                        Shake(BasketGroup)
+
+                        playSound("drop.mp3")
+
+                        BasketGroup.add(CanvasPartabImg);
+                        CanvasPartabImg.x(RandomNum(CanvasPartabImg.width() / 2, Basket.width() - CanvasPartabImg.width() / 2));
+                        CanvasPartabImg.y(0);
+                        CanvasPartabImg.rotation(Math.floor(Math.random() * 81))
+                        Basket.moveToTop();
+
+
+                    },
+                });
+
+                tween.play();
+
+            }
+
+            PartabImg.src = imgItem.src;
+
+        }
+
+
+        BasketDownTimeOut = null;
+        Cart = []
+
+        function addToCart(item) {
+
+            UpBasketPosition = (stage.height() - 150) / 1.05;
+            new Konva.Tween({
+                node: BasketGroup,
+                duration: 0.2, // Animation duration (seconds)
+                y: UpBasketPosition,
+                easing: Konva.Easings.EaseInOut,
+            }).play();
+
+            Partab(item.image);
+
+            if (BasketDownTimeOut) {
+                clearTimeout(BasketDownTimeOut);
+            }
+            BasketDownTimeOut = setTimeout(() => {
+                new Konva.Tween({
+                    node: BasketGroup,
+                    duration: 0.5, // Animation duration (seconds)
+                    y: stage.height() + 100,
+                    easing: Konva.Easings.EaseInOut,
+                }).play();
+
+            }, 3000)
+
+            //calc price
+
+            const previousTotalPrice = sumCartPrice();
+            Cart.push(item.product);
+            document.getElementById("checkout").style.display = "block"
+            animateCounter(previousTotalPrice, sumCartPrice(), document.getElementById("total"))
+
+        }
+
+
+        // create Konva satage and basket
+
+        stage = new Konva.Stage({
+            container: 'stage',
+            width: window.innerWidth,
+            height: window.innerHeight
+        });
+
+
+        var layer = new Konva.Layer();
+
+        var BasketImg = new Image();
+        BasketImg.src = 'images/basket.png';
+        BasketImg.onload = function () {
+            Basket = new Konva.Image({
+                image: BasketImg,
+                width: 200,
+                height: 132,
+            });
+
+
+            BasketGroup = new Konva.Group({
+                x: (stage.width() - Basket.width()) / 2,
+                y: stage.height()
+            });
+
+            layer.add(BasketGroup);
+            BasketGroup.add(Basket);
+
+        };
+        stage.add(layer);
+    </script>
+</body>
+
+</html>
